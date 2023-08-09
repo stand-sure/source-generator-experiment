@@ -5,7 +5,8 @@ public static partial class Program
     private static void Main(string[] args)
     {
         HelloFrom("Generated Code");
-        Console.WriteLine("end");
+        var f = new MyImplementation();
+        Console.WriteLine(f.ToString());
     }
 
     static partial void HelloFrom(string name);
