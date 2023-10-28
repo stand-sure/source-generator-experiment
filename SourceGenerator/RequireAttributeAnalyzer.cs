@@ -47,37 +47,28 @@ public class RequireAttributeAnalyzer : DiagnosticAnalyzer
     {
         var typeSymbol = analysisContext.Symbol as INamedTypeSymbol;
 
-        bool shouldBeAnalyzed = typeSymbol?.Interfaces.Any(symbol => symbol.Name.EndsWith(RequireAttributeAnalyzer.InterfaceName)) == true;
+        bool shouldBeAnalyzed = typeSymbol?.Interfaces.Any(symbol => symbol.Name == RequireAttributeAnalyzer.InterfaceName) == true;
 
-        shouldBeAnalyzed.Match(() => { }, () => CheckAttribute(analysisContext, typeSymbol));
+        shouldBeAnalyzed.Match(() => CheckAttribute(analysisContext, typeSymbol));
     }
 
-    private static void CheckAttribute(SymbolAnalysisContext analysisContext, INamedTypeSymbol typeSymbol)
+    private static void CheckAttribute(SymbolAnalysisContext analysisContext, ISymbol? typeSymbol)
     {
-        bool hasAttribute = typeSymbol.GetAttributes().Any(data => data.AttributeClass?.Name == RequireAttributeAnalyzer.AttributeName) == true;
+        bool hasAttribute = typeSymbol?.GetAttributes().Any(data => data.AttributeClass?.Name == RequireAttributeAnalyzer.AttributeName) == true;
 
-        hasAttribute.Match(() => { }, () => ReportDiagnostic(analysisContext, typeSymbol));
+        hasAttribute.Match(onFalse: () => ReportDiagnostic(analysisContext, typeSymbol));
     }
 
-    private static void ReportDiagnostic(SymbolAnalysisContext analysisContext, INamedTypeSymbol typeSymbol)
+    private static void ReportDiagnostic(SymbolAnalysisContext analysisContext, ISymbol? typeSymbol)
     {
-        Location location = typeSymbol!.Locations.First();
+        Location? location = typeSymbol?.Locations.First();
 
         var diagnostic = Diagnostic.Create(RequireAttributeAnalyzer.Rule,
             location,
-            typeSymbol.Name,
+            typeSymbol?.Name,
             RequireAttributeAnalyzer.InterfaceName,
             RequireAttributeAnalyzer.AttributeName);
 
         analysisContext.ReportDiagnostic(diagnostic);
-    }
-}
-
-internal static class FunctionalHelpers
-{
-    internal static void Match(this bool match, Action onTrue, Action onFalse)
-    {
-        Action act = match ? onTrue : onFalse;
-        act();
     }
 }

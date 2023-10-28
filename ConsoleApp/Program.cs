@@ -2,6 +2,8 @@
 
 public static partial class Program
 {
+    private static readonly MyDisposable MyDisposable = new MyDisposable();
+    
     private static void Main(string[] args)
     {
         HelloFrom("Generated Code");
