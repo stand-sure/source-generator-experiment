@@ -30,17 +30,59 @@ public class StaticDisposableAnalyzer : DiagnosticAnalyzer
         context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.ReportDiagnostics);
         context.EnableConcurrentExecution();
 
-        // context.RegisterCompilationStartAction(this.CompilationStartAction);
-
-        context.RegisterSyntaxNodeAction(AssignmentSyntaxNodeAction, SyntaxKind.SimpleAssignmentExpression);
-
         context.RegisterSyntaxNodeAction(FieldDeclarationSyntaxNodeAction, SyntaxKind.FieldDeclaration);
+
+        context.RegisterSyntaxNodeAction(PropertyDeclarationSyntaxNodeAction, SyntaxKind.PropertyDeclaration);
     }
 
-    // private void CompilationStartAction(CompilationStartAnalysisContext analysisContext)
-    // {
-    //     analysisContext.RegisterSyntaxNodeAction(this.SyntaxNodeAction, SyntaxKind.SimpleAssignmentExpression);
-    // }
+    private static void FieldDeclarationSyntaxNodeAction(SyntaxNodeAnalysisContext analysisContext)
+    {
+        var node = (FieldDeclarationSyntax)analysisContext.Node;
+
+        if (!node.Modifiers.Any(SyntaxKind.StaticKeyword))
+        {
+            return;
+        }
+
+        var typeSymbol = analysisContext.SemanticModel.GetSymbolInfo(node.Declaration.Type).Symbol as ITypeSymbol;
+
+        IsDisposable(typeSymbol).Match(Report);
+
+        // ReSharper disable once SeparateLocalFunctionsWithJumpStatement
+        void Report()
+        {
+            Location location = node.GetLocation();
+            string name = node.Declaration.Variables.First().Identifier.Text;
+            ReportDiagnostic(analysisContext, location, name);
+        }
+    }
+
+    private static bool IsDisposable(ITypeSymbol? typeSymbol)
+    {
+        return typeSymbol?.Interfaces.Any(symbol => symbol.Name == nameof(IDisposable)) == true;
+    }
+
+    private static void PropertyDeclarationSyntaxNodeAction(SyntaxNodeAnalysisContext analysisContext)
+    {
+        var node = (PropertyDeclarationSyntax)analysisContext.Node;
+
+        if (!node.Modifiers.Any(SyntaxKind.StaticKeyword))
+        {
+            return;
+        }
+
+        var typeSymbol = analysisContext.SemanticModel.GetSymbolInfo(node.Type).Symbol as ITypeSymbol;
+
+        IsDisposable(typeSymbol).Match(Report);
+
+        // ReSharper disable once SeparateLocalFunctionsWithJumpStatement
+        void Report()
+        {
+            Location location = node.GetLocation();
+            string name = node.Identifier.Text;
+            ReportDiagnostic(analysisContext, location, name);
+        }
+    }
 
     private static void ReportDiagnostic(SyntaxNodeAnalysisContext analysisContext, Location location, string name)
     {
@@ -50,39 +92,5 @@ public class StaticDisposableAnalyzer : DiagnosticAnalyzer
             name);
 
         analysisContext.ReportDiagnostic(diagnostic);
-    }
-
-    private static void AssignmentSyntaxNodeAction(SyntaxNodeAnalysisContext analysisContext)
-    {
-        var node = (AssignmentExpressionSyntax)analysisContext.Node;
-        Console.WriteLine(node);
-
-        ISymbol? left = analysisContext.SemanticModel.GetSymbolInfo(node.Left, analysisContext.CancellationToken).Symbol;
-
-        if (left?.IsStatic == true)
-        {
-            //ReportDiagnostic(analysisContext, left);
-        }
-    }
-
-    private static void FieldDeclarationSyntaxNodeAction(SyntaxNodeAnalysisContext analysisContext)
-    {
-        var node = (FieldDeclarationSyntax)analysisContext.Node;
-
-        Location location = node.GetLocation();
-        string name = node.Declaration.Variables.First().Identifier.Text;
-
-        node.Modifiers.Any(SyntaxKind.StaticKeyword).Match(Report);
-
-        // ReSharper disable once SeparateLocalFunctionsWithJumpStatement
-        // void CheckReadOnly()
-        // {
-        //     node.Modifiers.Any(SyntaxKind.ReadOnlyKeyword).Match(Ignore, Report);
-        // }
-
-        void Report()
-        {
-            ReportDiagnostic(analysisContext, location, name);
-        }
     }
 }
